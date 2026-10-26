@@ -1,0 +1,247 @@
+# Spesifikasi Aplikasi Mobile NetraOne
+
+Dokumen ini menjadi acuan produk, desain, integrasi API, dan prompt implementasi aplikasi mobile NetraOne. Spesifikasi dibedakan antara kemampuan backend yang sudah tersedia dan kemampuan yang masih perlu dibangun agar aplikasi tidak mengandalkan endpoint atau perilaku yang belum ada.
+
+## 1. Ringkasan produk
+
+NetraOne adalah aplikasi monitoring operasional CCTV dan event AI Picotel. Aplikasi mobile ditujukan untuk pengguna platform dan perusahaan agar dapat memantau event, kamera, notifikasi, serta status perangkat dari ponsel.
+
+### Tujuan
+
+- Memudahkan pengguna melihat event dan notifikasi sesuai hak aksesnya.
+- Menyediakan akses cepat ke kamera yang dapat dilihat pengguna.
+- Menampilkan informasi event secara aman tanpa membuka data tenant lain.
+- Memberikan pengalaman mobile yang konsisten dengan identitas visual NetraOne.
+
+### Platform dan bahasa
+
+- Target: Android dan iOS dari satu codebase.
+- Rekomendasi implementasi awal: Flutter, kecuali proyek atau tim sudah menetapkan teknologi mobile lain.
+- Bahasa UI awal: Bahasa Indonesia.
+- Zona waktu dan format tanggal mengikuti perangkat, dengan fallback zona waktu server.
+
+## 2. Peran pengguna dan akses
+
+Backend mengenal tiga role: `platform_admin`, `member_admin`, dan `member_user`. Backend tetap menjadi sumber otoritatif untuk autentikasi, tenant, dan otorisasi. Aplikasi tidak boleh memberikan akses hanya dengan menyembunyikan tombol.
+
+| Fitur | Platform admin | Member admin | Member user |
+|---|---|---|---|
+| Login dan melihat akun sendiri | Ya | Ya | Ya |
+| Melihat event sesuai scope | Semua tenant sesuai scope server | Perusahaan sendiri | Event dari kamera yang ditugaskan |
+| Melihat notifikasi sendiri dan menandai dibaca | Ya | Ya | Ya |
+| Melihat kamera | Semua yang diizinkan server | Kamera perusahaan sendiri | Kamera yang ditugaskan langsung atau melalui grup |
+| Mengelola data perusahaan, edge, dan kamera | Mengikuti batas API | Tidak tersedia untuk mobile melalui API saat ini | Tidak |
+| Melihat/mengelola integrasi | Hak platform sesuai API | Tidak tersedia | Tidak |
+| Mengelola pengguna dan grup | Hak sesuai API | Hak terbatas pada perusahaan sendiri | Tidak |
+
+Catatan:
+
+- `member_user` dapat melihat daftar pengguna hanya sesuai pembatasan server; jangan tampilkan data pengguna lain kecuali endpoint mengizinkannya.
+- Edge dan beberapa informasi jaringan/integrasi sengaja tidak diberikan kepada role non-platform.
+- Aplikasi wajib menampilkan akses ditolak atau pesan API yang sesuai, bukan mengasumsikan data kosong sebagai tanda berhasil.
+- Endpoint profil, perubahan password, dan pengaturan channel notifikasi belum terhubung di `routes/api.php`; jangan menganggap operasi tersebut tersedia sebelum backend menambahkannya.
+
+## 3. Fitur dan layar
+
+### MVP — memakai endpoint yang tersedia
+
+1. **Login**
+   - Form email dan password, validasi dasar, indikator proses, dan pesan gagal yang jelas.
+   - Setelah berhasil, simpan token secara aman dan lanjutkan ke beranda.
+   - Jangan simpan password atau token pada penyimpanan biasa/log.
+2. **Beranda**
+   - Ringkasan navigasi ke Event, Kamera, dan Notifikasi.
+   - Ringkasan angka hanya ditampilkan jika dapat dihitung dari data yang memang tersedia; jangan membuat angka statistik seolah-olah bersumber dari server bila API tidak menyediakannya.
+   - Tampilkan kondisi memuat, gagal memuat, kosong, dan coba lagi.
+3. **Daftar event**
+   - Mengambil `events` dari API dengan paginasi.
+   - Tampilkan data ringkas yang benar-benar tersedia, misalnya jenis event, waktu, severity, kamera, dan label lain yang dikembalikan API.
+   - Hormati scope tenant dan kamera dari server.
+   - Jangan mengasumsikan filter tanggal/severity tersedia di server; jika diperlukan, minta penambahan API.
+4. **Detail event**
+   - Buka detail melalui `GET /api/v1/events/{id}`.
+   - Sajikan metadata yang diizinkan API.
+   - Jangan menampilkan atau mengirim ulang `payload` mentah, data biometrik, gambar privat, maupun URL media sebagai konten aman tanpa kontrak akses media yang eksplisit.
+   - API mobile saat ini belum menyediakan endpoint media event khusus; tampilkan placeholder yang informatif bila media tidak dapat diakses.
+5. **Daftar kamera**
+   - Mengambil `cameras` dengan paginasi dan scope server.
+   - Tampilkan nama, status, dan label aman yang tersedia.
+   - Hindari menampilkan host, port, protokol jaringan, kredensial, atau detail edge yang tidak diizinkan.
+6. **Notifikasi**
+   - Mengambil `notifications` dengan paginasi; data dibatasi server untuk pengguna yang sedang login.
+   - Tandai notifikasi sudah dibaca melalui `POST /api/v1/notifications/{id}/read`.
+   - Bedakan status dibaca/belum dibaca dengan teks atau ikon, bukan warna saja.
+7. **Profil dan keluar**
+   - Muat identitas pengguna dari `GET /api/v1/me`.
+   - Keluar melalui `POST /api/v1/mobile/logout`, lalu hapus token lokal.
+   - Perubahan profil/password belum menjadi bagian MVP sampai endpoint backend tersedia.
+
+### Pengembangan lanjutan — perlu kontrak/backend tambahan
+
+- Push notification native (registrasi token perangkat, preferensi, deep link).
+- Filter server-side event berdasarkan rentang waktu, severity, kamera, dan jenis.
+- Media event yang aman dengan otorisasi, masa berlaku URL, dan penanganan data privat.
+- Pengaturan profil, ganti password, dan preferensi channel notifikasi.
+- Dashboard statistik agregat yang disediakan server.
+- Mode offline/cache, ekspor, atau tindakan operasional event.
+
+Jangan membuat fitur lanjutan tersebut sebagai integrasi palsu atau menambahkan URL/kontrak API yang tidak tercatat. Catat kebutuhan endpoint dan minta persetujuan sebelum mengubah backend.
+
+## 4. Alur pengguna utama
+
+1. Pengguna membuka aplikasi dan login menggunakan email/password.
+2. Aplikasi menerima token API, menyimpannya dengan penyimpanan aman, kemudian memuat `GET /api/v1/me`.
+3. Beranda menampilkan pintasan ke event, kamera, dan notifikasi.
+4. Pengguna membuka daftar, memuat halaman berikutnya saat diperlukan, lalu membuka detail item.
+5. Pengguna menandai notifikasi sebagai dibaca; UI berubah hanya setelah server mengonfirmasi atau menampilkan status gagal dengan opsi coba lagi.
+6. Saat logout atau token tidak berlaku, aplikasi menghapus kredensial lokal dan kembali ke halaman login.
+
+## 5. Kontrak API backend saat ini
+
+Base path: `/api/v1`. Semua endpoint mobile menggunakan HTTPS di luar lingkungan lokal.
+
+### Daftar URL untuk aplikasi mobile
+
+Konfigurasikan `API_BASE_URL` sebagai origin backend, tanpa akhiran `/api/v1` dan tanpa slash di akhir. Host production belum ditetapkan di repository ini; ganti `<domain-backend>` dengan domain deployment yang diberikan tim backend. Jangan menanam domain atau secret ke source code.
+
+Contoh format: `API_BASE_URL=https://<domain-backend>`. Semua URL berikut dibentuk sebagai `${API_BASE_URL}/api/v1/...`.
+
+| Method | URL | Auth | Kegunaan |
+|---|---|---|---|
+| `POST` | `${API_BASE_URL}/api/v1/mobile/login` | Tidak | Login; body JSON berisi `email` dan `password` |
+| `GET` | `${API_BASE_URL}/api/v1/me` | Bearer token | Memuat user aktif |
+| `POST` | `${API_BASE_URL}/api/v1/mobile/logout` | Bearer token | Logout dan mencabut token aktif |
+| `GET` | `${API_BASE_URL}/api/v1/events?per_page=20&page=1` | Bearer token | Daftar event; ikuti metadata paginasi yang dikembalikan |
+| `GET` | `${API_BASE_URL}/api/v1/events/{id}` | Bearer token | Detail event |
+| `GET` | `${API_BASE_URL}/api/v1/cameras?per_page=20&page=1` | Bearer token | Daftar kamera |
+| `GET` | `${API_BASE_URL}/api/v1/notifications?per_page=20&page=1` | Bearer token | Daftar notifikasi pengguna |
+| `POST` | `${API_BASE_URL}/api/v1/notifications/{id}/read` | Bearer token | Tandai notifikasi sebagai dibaca |
+
+Contoh konfigurasi saat menjalankan Flutter:
+
+```sh
+flutter run --dart-define=API_BASE_URL=https://your-backend-domain
+```
+
+Nilai konfigurasi harus berupa origin HTTPS backend yang dapat dijangkau perangkat/emulator. Untuk development lokal, gunakan alamat host yang sesuai dengan lingkungan emulator; `localhost` pada perangkat mobile biasanya menunjuk ke perangkat itu sendiri, bukan komputer developer. Endpoint mobile tidak disediakan melalui domain pihak ketiga.
+
+Backend juga menyediakan endpoint generik terautentikasi `GET /api/v1/{resource}` dan `GET /api/v1/{resource}/{id}`. Resource terdaftar: `companies`, `sites`, `edges`, `cameras`, `groups`, `users`, `camera_mappings`, `events`, `notifications`, dan `integration_profiles`. Endpoint tulis generik yang tersedia adalah `POST /api/v1/{resource}`, `PUT /api/v1/{resource}/{id}`, `DELETE /api/v1/{resource}/{id}`, dan `POST /api/v1/{resource}/{id}/restore`; izin bergantung pada role/resource dan ketersediaan route tidak berarti operasi tersebut bagian dari MVP mobile. Pencarian `q` hanya tersedia untuk `companies`, `sites`, `edges`, `cameras`, `groups`, `users`, dan `integration_profiles`; daftar mendukung `per_page` (1–100).
+
+| Method | Path | Auth | Kegunaan |
+|---|---|---|---|
+| `POST` | `/mobile/login` | Tidak | Login dengan `email` dan `password`; respons memberikan `token` dan `user` |
+| `GET` | `/me` | Token API Sanctum | Mengambil user aktif |
+| `POST` | `/mobile/logout` | Token API Sanctum | Menghapus token akses yang sedang digunakan |
+| `GET` | `/{resource}` | Token API Sanctum | Daftar resource dengan paginasi; query `per_page` dibatasi 1–100 dan `q` tersedia untuk pencarian nama pada resource tertentu |
+| `GET` | `/{resource}/{id}` | Token API Sanctum | Detail resource dalam scope pengguna |
+| `POST` | `/notifications/{id}/read` | Token API Sanctum | Menandai notifikasi milik pengguna sebagai dibaca |
+| `POST`, `PUT`, `DELETE` | `/{resource}[/{id}]` | Token API Sanctum | Operasi generik yang dibatasi role/resource oleh backend; bukan berarti semua resource dapat diedit dari aplikasi |
+
+Resource yang terdaftar di API generik mencakup `companies`, `sites`, `edges`, `cameras`, `groups`, `users`, `camera_mappings`, `events`, `notifications`, dan `integration_profiles`. Scope dan izin berbeda menurut role. `events` bersifat ingestion-only; `notifications` tidak dapat diubah melalui CRUD umum.
+
+### Aturan integrasi
+
+- Kirim token akses pada header `Authorization` menggunakan skema Bearer dan sertakan `Accept: application/json`.
+- Gunakan HTTPS dan jangan menaruh token pada URL.
+- Ikuti struktur paginasi Laravel yang benar-benar dikembalikan server; tangani `data`, metadata halaman, dan kemungkinan perubahan struktur dengan model API terpisah.
+- Tangani setidaknya respons `401`, `403`, `404`, `422`, `429`, dan `5xx` secara eksplisit.
+- Jangan mengubah `403` menjadi daftar kosong atau menelan pesan validasi.
+- Tidak ada endpoint mobile khusus untuk statistik, upload media, registrasi push token, pembaruan profil, atau perubahan password saat spesifikasi ini dibuat.
+- Jangan mengandalkan `DisplayLabels` sebagai otorisasi. Label hanyalah informasi tampilan; seluruh keputusan akses berasal dari server.
+
+## 6. Navigasi dan desain visual
+
+Gunakan navigasi utama bawah (bottom navigation) untuk **Beranda**, **Event**, **Kamera**, dan **Notifikasi**. Profil/logout dapat diakses dari avatar atau menu akun. Detail dibuka sebagai halaman bertumpuk dengan tombol kembali.
+
+Ikuti panduan visual web Picotel/NetraOne yang dilampirkan:
+
+| Token/elemen | Nilai atau panduan |
+|---|---|
+| Primer | `#006b66` |
+| Primer kuat | `#005650` |
+| Sekunder | `#009ba1` |
+| Aksen/fokus | `#13b6c7` |
+| Sukses | `#13b85a` |
+| Peringatan | `#f6a21a` |
+| Bahaya | `#f04444` |
+| Teks utama | `#173247` |
+| Teks sekunder | `#68808e` |
+| Latar | `#f2fafa` |
+| Permukaan kartu | `#ffffff` |
+| Border | `#c9e9e9` |
+| Font | Poppins; fallback sistem sans-serif |
+| Bentuk | Kartu radius sekitar 12 px, border teal muda, bayangan lembut |
+
+Adaptasikan nilai web tersebut ke skala dan unit native mobile; jangan memaksakan ukuran piksel CSS. Pertahankan kontras aksesibel, area sentuh yang nyaman, indikator fokus, ukuran teks dinamis, label status, serta tampilan loading/error/empty. Gunakan severity warna hanya bersama label atau ikon.
+
+## 7. Persyaratan kualitas
+
+- **Keamanan:** token pada secure storage platform; logout membersihkan token; tidak ada password/token dalam log, analytics, screenshot debug, atau crash report.
+- **Privasi:** minimalkan data lokal; jangan cache payload mentah atau media privat; bersihkan data pengguna saat logout.
+- **Isolasi tenant:** semua data dan tindakan mengikuti respons/otorisasi server; jangan menyimpan atau menggabungkan data lintas akun.
+- **Reliabilitas:** timeout jaringan, retry yang aman untuk GET, pencegahan request berulang, state loading/error/empty, dan refresh daftar.
+- **Aksesibilitas:** kontras memadai, semantic label untuk ikon/tombol, area sentuh nyaman, dan tidak bergantung pada warna.
+- **Kinerja:** paginasi; hindari mengunduh seluruh data sekaligus.
+- **Kompatibilitas:** uji setidaknya emulator Android dan simulator iOS sebelum rilis.
+- **Kualitas kode:** pemisahan UI, model DTO, API client, autentikasi, dan state; penanganan tipe yang ketat; tes untuk alur penting.
+
+## 8. Kriteria penerimaan MVP
+
+- Pengguna dengan kredensial valid dapat login dan mencapai beranda; kredensial salah menampilkan pesan yang dapat dipahami.
+- Token tersimpan secara aman dan digunakan untuk request terautentikasi; logout menghapus token lokal dan token server.
+- Pengguna hanya menerima resource sesuai role/tenant yang diizinkan server.
+- Daftar event, kamera, dan notifikasi mendukung paginasi serta state loading, gagal, kosong, dan refresh.
+- Detail event hanya menampilkan field yang tersedia dan aman; tidak ada media privat palsu.
+- Pengguna tidak dapat menandai notifikasi milik user lain; kegagalan API tidak membuat UI mengklaim berhasil.
+- Navigasi dan styling konsisten dengan identitas visual NetraOne serta berfungsi pada ukuran ponsel umum.
+- Tes mencakup login/logout, respons API gagal, paginasi, akses role, dan penandaan notifikasi.
+
+## 9. Prompt siap pakai untuk AI pembuat aplikasi mobile
+
+Salin prompt berikut ke AI coding agent dengan akses ke repository:
+
+```text
+Anda adalah senior mobile engineer. Buat aplikasi mobile NetraOne untuk Android dan iOS berdasarkan repository yang sedang dibuka dan dokumen docs/MOBILE_APP_SPEC.md.
+
+KONTEKS PROYEK
+- Backend adalah Laravel 12, API berada di /api/v1, dan autentikasi menggunakan token API Laravel Sanctum pada header Authorization dengan skema Bearer.
+- API saat ini menyediakan POST /mobile/login, GET /me, POST /mobile/logout, GET /{resource} dengan paginasi, GET /{resource}/{id}, serta POST /notifications/{id}/read.
+- Resource yang relevan untuk MVP adalah events, cameras, notifications, dan identitas akun.
+- Backend menerapkan scope tenant dan role: platform_admin, member_admin, member_user. Jangan meniru otorisasi backend di client sebagai pengganti pemeriksaan server.
+- Belum ditemukan source aplikasi mobile atau scaffold Flutter pada repository ini; backend dan API mobile tersedia. Jangan mengasumsikan endpoint atau field yang tidak tercatat.
+- Ikuti identitas visual NetraOne pada dokumen: teal #006b66, aksen #009ba1/#13b6c7, latar #f2fafa, permukaan putih, teks #173247, font Poppins dengan fallback sans-serif.
+
+TUJUAN
+Bangun MVP mobile lintas platform. Gunakan Flutter/Dart kecuali repository atau instruksi project yang sudah ada menentukan framework lain. Tempatkan aplikasi pada direktori mobile yang tidak mengganggu aplikasi Laravel.
+
+FITUR MVP
+1. Login email/password, validasi, loading, error yang jelas.
+2. Secure token storage, GET /api/v1/me, HTTP Authorization Bearer, logout POST /api/v1/mobile/logout, hapus kredensial lokal saat logout atau 401.
+3. Navigasi Beranda, Event, Kamera, Notifikasi, dan menu Profil/logout.
+4. Daftar events, cameras, notifications dari API dengan paginasi, refresh, loading, empty, retry, dan pesan error.
+5. Detail event hanya memakai field yang benar-benar dikembalikan API. Jangan mengasumsikan filter tanggal/severity, akses gambar/video, statistik, atau endpoint tambahan.
+6. Tandai notifikasi dibaca memakai POST /api/v1/notifications/{id}/read; tampilkan sukses hanya setelah respons berhasil.
+7. Tampilkan data hanya sesuai response server. Perlakukan 401, 403, 404, 422, 429, dan 5xx dengan benar.
+
+BATASAN WAJIB
+- Jangan membuat backend/API palsu, mock yang tampak seperti produksi, kredensial contoh nyata, atau fitur seolah-olah telah tersambung.
+- Jangan menampilkan payload mentah event, rahasia integrasi, data biometrik, alamat jaringan, atau media privat.
+- Jangan menyimpan token/password pada plain preferences, source code, URL, atau log.
+- Jangan membuat filter server-side, push notification, perubahan profil/password, dashboard statistik, atau viewer media sebelum API dan kontraknya tersedia.
+- Jangan mengganti atau menghapus perilaku backend Laravel yang sudah ada.
+
+LANGKAH KERJA
+1. Periksa struktur repository dan dokumen spesifikasi sebelum mengubah file. Cek apakah toolchain Flutter tersedia. Jika tidak tersedia, jangan mengarang hasil build; tetap buat perubahan yang dapat divalidasi dan jelaskan blocker.
+2. Rancang struktur kode sederhana dengan model DTO bertipe, API client, repository/state management yang konsisten, secure storage, navigasi, komponen UI, dan konfigurasi base URL per environment. Jangan commit secret atau default ke host produksi.
+3. Implementasikan fitur MVP dan layar loading/error/empty/unauthorized dengan desain responsif dan aksesibel.
+4. Buat tes unit/widget untuk parsing response/paginasi, login/logout, error API, dan status baca notifikasi. Tambahkan README aplikasi berisi prasyarat, cara menjalankan, konfigurasi base URL, dan cara tes.
+5. Jalankan formatter, analyzer/linter, dan tes yang tersedia untuk perubahan mobile. Jika command gagal karena dependency/toolchain tidak ada, laporkan secara spesifik; jangan klaim sukses.
+6. Tinjau diff akhir: pastikan tidak ada token/secret, perubahan tidak terkait, atau asumsi endpoint yang tidak didukung.
+
+KRITERIA SELESAI
+- Aplikasi dapat dijalankan dengan konfigurasi base URL yang diberikan developer.
+- Seluruh alur MVP berfungsi terhadap Laravel API nyata dan tidak mengandalkan data palsu.
+- Role dan akses tetap diputuskan backend; UI mampu menangani 401/403.
+- Tes dan pemeriksaan statis yang tersedia lulus, atau keterbatasannya dilaporkan.
+- Laporkan file penting yang berubah, fitur selesai, command validasi beserta hasilnya, dan setiap endpoint backend yang masih dibutuhkan untuk fitur lanjutan.
+```
