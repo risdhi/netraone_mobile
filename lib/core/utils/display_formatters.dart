@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 String v(dynamic x) => x == null
-    ? 'â€”'
+    ? '—'
     : x is List
         ? x.join(', ')
         : x is Map

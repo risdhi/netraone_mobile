@@ -11,7 +11,7 @@ class ErrorPanel extends StatelessWidget {
       child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 40),
+            const Icon(Icons.error_outline, color: errorColor, size: 40),
             Text(message, textAlign: TextAlign.center),
             TextButton(onPressed: retry, child: const Text('Coba lagi'))
           ])));
@@ -148,7 +148,7 @@ class _ResourceState extends State<ResourceScreen> {
       Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(children: [
-            Text('$total data', style: const TextStyle(color: Colors.blueGrey)),
+            Text('$total data', style: const TextStyle(color: mutedInk)),
             const Spacer(),
             const Text('Baris: '),
             DropdownButton<int>(
@@ -225,7 +225,7 @@ class _ResourceState extends State<ResourceScreen> {
                                   item['email'],
                                   item['device_id'],
                                   item['last_seen_at']
-                                ].where((e) => e != null).map(v).join(' â€¢ ');
+                                ].where((e) => e != null).map(v).join(' · ');
                                 return Card(
                                     child: ListTile(
                                   leading: CircleAvatar(
@@ -275,24 +275,101 @@ class _ResourceState extends State<ResourceScreen> {
 class EventTile extends StatelessWidget {
   final Map<String, dynamic> event;
   const EventTile({super.key, required this.event});
+
   @override
   Widget build(BuildContext context) {
+    final severity = '${event['severity'] ?? ''}'.toLowerCase();
+    final severityColor = switch (severity) {
+      'critical' => errorColor,
+      'high' => warningColor,
+      'medium' => warningColor,
+      _ => blue,
+    };
+
     return Card(
-        child: ListTile(
-      leading: const Icon(Icons.warning_amber_rounded,
-          color: Colors.deepOrange, size: 34),
-      title: Text(v(event['event_type']),
-          style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(
-          '${displayField(event, 'camera_id')} â€¢ ${displayField(event, 'occurred_at')}',
-          maxLines: 2),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.push(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => DetailScreen(
-                  resource: 'events', title: 'Detail Event', item: event))),
-    ));
+            builder: (_) => DetailScreen(
+              resource: 'events',
+              title: 'Detail Event',
+              item: event,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: severityColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  color: severityColor,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      v(event['event_type']),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: ink,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${displayField(event, 'camera_id')} · ${displayField(event, 'occurred_at')}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: mutedInk,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (severity.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: severityColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    displayField(event, 'severity'),
+                    style: TextStyle(
+                      color: severityColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 3),
+              const Icon(Icons.chevron_right, color: mutedInk, size: 19),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -312,8 +389,7 @@ class NotificationTile extends StatelessWidget {
                     : Icons.notifications_none,
                 color: blue)),
         title: Text(displayField(item, 'event_id')),
-        subtitle:
-            Text('Channel: ${v(item['channel'])} â€¢ ${v(item['status'])}'),
+        subtitle: Text('Channel: ${v(item['channel'])} · ${v(item['status'])}'),
         trailing: item['read_at'] == null
             ? IconButton(
                 icon: const Icon(Icons.done),
@@ -455,8 +531,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 children: [
                   Text(
                     fieldTitle(entry.key),
-                    style:
-                        const TextStyle(fontSize: 11, color: Colors.blueGrey),
+                    style: const TextStyle(fontSize: 11, color: mutedInk),
                   ),
                   const SizedBox(height: 3),
                   Text(displayField(item, entry.key)),
@@ -742,7 +817,7 @@ class _EditorState extends State<EditorScreen> {
                 Padding(
                     padding: const EdgeInsets.all(10),
                     child: Text(error!,
-                        style: const TextStyle(color: Colors.red))),
+                        style: const TextStyle(color: errorColor))),
               FilledButton(
                   onPressed: busy ? null : save,
                   child: Text(busy ? 'Menyimpan...' : 'Simpan')),

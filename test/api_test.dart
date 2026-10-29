@@ -74,22 +74,19 @@ void main() {
     },
   );
 
-  test('rejects a base URL that already includes the API path', () async {
+  test('supports a base URL that already includes the API path', () async {
+    late Uri requestedUri;
     final api = Api(
-      baseUrl: 'https://api.example.test/api/v1',
-      client: MockClient((_) async => http.Response('{}', 200)),
+      baseUrl: 'https://api.example.test/api/v1/',
+      client: MockClient((request) async {
+        requestedUri = request.url;
+        return http.Response(jsonEncode({'data': []}), 200);
+      }),
     );
 
-    await expectLater(
-      api.page('events'),
-      throwsA(
-        isA<ApiError>().having(
-          (error) => error.message,
-          'message',
-          contains('tanpa /api/v1'),
-        ),
-      ),
-    );
+    await api.page('events');
+
+    expect(requestedUri.path, '/api/v1/events');
   });
 
   test('sends the saved token as a Bearer authorization header', () async {

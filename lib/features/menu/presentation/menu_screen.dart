@@ -9,48 +9,91 @@ class MenuScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        const Padding(
-          padding: EdgeInsets.all(10),
-          child: Text(
-            'Menu NetraOne',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Semua menu')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        children: [
+          Text(
+            'Akses cepat',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-        ),
-        ...screens.map((screen) {
-          return Card(
+          const SizedBox(height: 5),
+          Text(
+            'Pilih area yang ingin Anda kelola.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          ...screens.where((screen) => screen.resource != 'profile').map((screen) {
+            return Card(
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: picotelMint,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(screen.icon, color: blue, size: 21),
+                ),
+                title: Text(
+                  screen.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  screen.writable ? 'Lihat dan kelola data' : 'Lihat data',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => screen.resource == 'profile'
+                          ? const ProfileScreen()
+                          : ResourceScreen(spec: screen),
+                    ),
+                  );
+                },
+              ),
+            );
+          }),
+          Card(
+            clipBehavior: Clip.antiAlias,
             child: ListTile(
-              leading: Icon(screen.icon, color: blue),
-              title: Text(screen.title),
-              trailing: const Icon(Icons.chevron_right),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: picotelMint,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(Icons.person_outline_rounded, color: blue),
+              ),
+              title: const Text(
+                'Profil saya',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                'Informasi akun',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => screen.resource == 'profile'
-                        ? const ProfileScreen()
-                        : ResourceScreen(spec: screen),
-                  ),
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
                 );
               },
             ),
-          );
-        }),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Profil'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
-            },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

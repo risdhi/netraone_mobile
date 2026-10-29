@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
-const apiBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+const apiBase = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'https://netra-one.dgeo.id/api/v1',
+);
 
 class ApiError implements Exception {
   final String message;
@@ -32,31 +35,32 @@ class Api {
     if (base.isEmpty) {
       throw ApiError(
         'URL API belum dikonfigurasi. Jalankan aplikasi dengan '
-        '--dart-define=API_BASE_URL=https://domain-backend',
+        '--dart-define=API_BASE_URL=https://netra-one.dgeo.id/api/v1',
       );
     }
-    final origin = Uri.tryParse(base);
-    if (origin == null ||
-        !origin.hasAuthority ||
-        origin.host.isEmpty ||
-        origin.path.isNotEmpty && origin.path != '/' ||
-        origin.hasQuery ||
-        origin.hasFragment ||
-        origin.userInfo.isNotEmpty ||
-        !const ['http', 'https'].contains(origin.scheme)) {
+    final baseUri = Uri.tryParse(base);
+    final basePath = baseUri?.path;
+    if (baseUri == null ||
+        !baseUri.hasAuthority ||
+        baseUri.host.isEmpty ||
+        !const ['', '/', '/api/v1', '/api/v1/'].contains(basePath) ||
+        baseUri.hasQuery ||
+        baseUri.hasFragment ||
+        baseUri.userInfo.isNotEmpty ||
+        !const ['http', 'https'].contains(baseUri.scheme)) {
       throw ApiError(
-        'API_BASE_URL harus berupa origin backend, misalnya '
-        'https://domain-backend tanpa /api/v1, path, query, atau slash akhir.',
+        'API_BASE_URL harus berupa origin backend atau URL dasar API '
+        'https://domain-backend/api/v1 tanpa query atau fragment.',
       );
     }
     final localHosts = {'localhost', '127.0.0.1', '10.0.2.2', '::1'};
-    if (origin.scheme != 'https' && !localHosts.contains(origin.host)) {
+    if (baseUri.scheme != 'https' && !localHosts.contains(baseUri.host)) {
       throw ApiError(
         'API_BASE_URL harus menggunakan HTTPS kecuali untuk host lokal.',
       );
     }
     final relative = Uri.parse(path.startsWith('/') ? path.substring(1) : path);
-    return origin.replace(
+    return baseUri.replace(
       path: '/api/v1/${relative.path}',
       query: relative.hasQuery ? relative.query : null,
       fragment: null,

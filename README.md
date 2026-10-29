@@ -45,23 +45,24 @@ terdeteksi oleh `flutter devices`.
 
 ## Menjalankan
 
-URL API wajib diberikan saat run sebagai **origin backend saja**. Jangan
-menambahkan `/api/v1` atau slash akhir; aplikasi menambahkan `/api/v1` secara
-otomatis. Host production belum ditetapkan dalam spesifikasi, jadi ganti contoh
-domain berikut dengan alamat yang diberikan tim backend:
+URL API production sudah dikonfigurasi secara default ke
+`https://netra-one.dgeo.id/api/v1`. Jika perlu mengganti alamat saat run,
+gunakan origin backend atau URL dasar API (dengan `/api/v1`); aplikasi menerima
+keduanya dan menghindari penambahan path ganda:
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=https://your-backend-domain
+flutter run --dart-define=API_BASE_URL=https://netra-one.dgeo.id/api/v1
 ```
 
 Untuk memilih target tertentu, lihat ID dari `flutter devices`, kemudian:
 
 ```powershell
-flutter run -d <device-id> --dart-define=API_BASE_URL=https://your-backend-domain
+flutter run -d <device-id> --dart-define=API_BASE_URL=https://netra-one.dgeo.id/api/v1
 ```
 
-Sebagai contoh, konfigurasi `API_BASE_URL=https://backend.example.com` akan
-mengirim request ke `https://backend.example.com/api/v1/mobile/login` dan
+Contohnya, `API_BASE_URL=https://backend.example.com` maupun
+`API_BASE_URL=https://backend.example.com/api/v1` akan mengirim request ke
+`https://backend.example.com/api/v1/mobile/login` dan
 `https://backend.example.com/api/v1/events`. URL harus dapat dijangkau oleh
 emulator/perangkat. `localhost` dari ponsel menunjuk ke ponsel itu sendiri;
 untuk emulator Android, host development lokal biasanya diakses melalui
@@ -96,7 +97,7 @@ sebagai kegagalan, bukan sebagai daftar kosong yang berhasil.
 dart format lib test
 flutter analyze
 flutter test
-flutter build apk --debug --dart-define=API_BASE_URL=https://your-backend-domain
+flutter build apk --debug --dart-define=API_BASE_URL=https://netra-one.dgeo.id/api/v1
 ```
 
 Uji pada emulator/perangkat Android dan simulator iOS sebelum rilis. Build iOS
